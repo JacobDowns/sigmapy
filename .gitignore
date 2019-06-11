@@ -1,0 +1,13 @@
+*.pyc
+*.tex
+*.toc
+*.aux
+*.out
+dist/
+*egg-info*
+_build/
+_static
+_templatesq
+.settings/
+.cache/
+.pytest_cache
