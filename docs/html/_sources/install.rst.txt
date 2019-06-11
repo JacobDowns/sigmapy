@@ -1,8 +1,10 @@
 Installation
 =============
 
-To install filterpy run. Sigmapy requires Python 3 and Numpy.
+To install filterpy run. 
 
 .. code-block:: bash
 
-    $ pip install filterpy
+    $ python -m pip install sigmapy
+
+Sigmapy requires Python 3 and Numpy.
