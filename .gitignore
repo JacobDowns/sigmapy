@@ -11,3 +11,5 @@ _templatesq
 .settings/
 .cache/
 .pytest_cache
+\#*#
+*~
