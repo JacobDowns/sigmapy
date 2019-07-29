@@ -606,15 +606,9 @@ class SigmaSets(object):
         ### Generate simplex vertices
         # First set of points
 
-        jj = (np.arange(n)[:,None] + 1).repeat(n + 1, axis = 1).T
-        mm = (np.arange(n + 1) + 1)[:,None].repeat(n, axis = 1)
-
-        #jj, mm = np.meshgrid(n, n+1)
-
-        print(jj.shape)
-        print(mm)
-        quit()
         
+        jj, mm = np.meshgrid(np.arange(1,n+1), np.arange(1,n+2))
+
         A = -np.sqrt((n+1.) / (n*(n-I+2.)*(n-I+1.)))
         indexes = (I == R)
         A[indexes] = np.sqrt( ((n+1.)*(n-R[indexes]+1.)) / (n*(n-R[indexes]+2.)
