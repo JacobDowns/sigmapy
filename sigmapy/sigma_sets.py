@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.linalg import cholesky, inv
+from polynomials import chebyshev_laguerre_cofs
 
 class SigmaSets(object):
     
@@ -49,6 +50,7 @@ class SigmaSets(object):
         self.sigma_functions['julier'] = self.get_set_julier
         self.sigma_functions['simplex'] = self.get_set_simplex
         self.sigma_functions['hermite'] = self.get_set_hermite
+        self.sigma_functions['oscl'] = self.get_set_oscl
 
         # Method order
         self.sigma_order = {}
@@ -59,6 +61,7 @@ class SigmaSets(object):
         self.sigma_order['julier'] = 3
         self.sigma_order['simplex'] = 2
         self.sigma_order['hermite'] = 3
+        self.sigma_order['oscl'] = 3
         
     
     def get_set(self, x, Px, **sigma_args):
@@ -368,7 +371,7 @@ class SigmaSets(object):
         Parameters
         ----------
 
-         n : int
+        n : int
             Dimensionality of the state. 2n^2 + 1 points will be generated.
 
         r : scalar
@@ -550,3 +553,80 @@ class SigmaSets(object):
         X *= np.sqrt(3.)
 
         return X, wm, wm
+
+    
+
+    def get_set_oscl(self, n, **scale_args):
+        """
+        Computes the sigma points and weights according to the Orthongonal
+        Simplex Chebyshev-Laguerre method in [8]_. 
+
+        Parameters
+        ----------
+
+        n : int
+            Dimensionality of the state. n*nc points will be generated.
+
+        nc : int
+            The degree of the Chebyshev-Laguerre polynomial 
+
+        Returns
+        -------
+
+        X : np.array, of size (n, 3^n)
+            Two dimensional array of sigma points. Each column is a sigma 
+            point.
+
+        wm : np.array
+            weight for each sigma point for the mean
+
+        wc : np.array
+            weight for each sigma point for the covariance
+
+        References
+        ----------
+        .. [8] Liu, Z. et al.  "Orthogonal Simplex Chebyshev-Laguerre 
+           Cubature Kalman Filter Applied in Nonlinear Estimation Systems" 
+
+        """
+
+        ### Generate othogonal matrix B
+        B = np.zeros((n,n))
+        ii, pp = np.meshgrid(np.arange(1.,n+1), np.array(np.arange(n) / 2,
+                                                         dtype = int) + 1)
+        B = ((2*pp - 1.)*ii*np.pi) / float(n)
+        B[0::2] = np.cos(B[0::2])
+        B[1::2] = np.sin(B[1::2])
+        B *= np.sqrt(2. / float(n))
+        if n % 2 == 1:
+            print(ii[-1,:])
+            B[-1,:] = ((-1)**(ii[-1,:])) / np.sqrt(float(n))
+
+
+        ### Generate simplex vertices
+        # First set of points
+
+        jj = (np.arange(n)[:,None] + 1).repeat(n + 1, axis = 1).T
+        mm = (np.arange(n + 1) + 1)[:,None].repeat(n, axis = 1)
+
+        #jj, mm = np.meshgrid(n, n+1)
+
+        print(jj.shape)
+        print(mm)
+        quit()
+        
+        A = -np.sqrt((n+1.) / (n*(n-I+2.)*(n-I+1.)))
+        indexes = (I == R)
+        A[indexes] = np.sqrt( ((n+1.)*(n-R[indexes]+1.)) / (n*(n-R[indexes]+2.)
+))
+        indexes = I > R
+        A[indexes] = 0.
+
+        
+
+
+n = 11
+x = np.zeros(n)
+Px = np.eye(n)
+sets = SigmaSets()
+sets.get_set(x, Px, set_name = 'oscl')
