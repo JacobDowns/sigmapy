@@ -1,6 +1,8 @@
 import numpy as np
 from numpy.linalg import cholesky, inv
-from polynomials import chebyshev_laguerre_cofs
+from math_util import chebyshev_laguerre_cofs, simplex_vertices
+from scipy.misc import factorial
+from scipy.special import gamma
 
 class SigmaSets(object):
     
@@ -400,7 +402,7 @@ class SigmaSets(object):
         r = np.sqrt(3./2.)
         # If the first weight is defined
         if 'r' in scale_args:
-            r = slace_args['r']
+            r = scale__args['r']
             if n < 5 or abs(n - r**2 - 1.) < 1e-16:
                 raise ValueError("This method requires n>=4 and n - r^2 - 1 != 0")
         
@@ -485,6 +487,12 @@ class SigmaSets(object):
 ))
         indexes = I > R
         A[indexes] = 0.
+
+        print(I)
+        print(R)
+        print(A)
+        print(A.shape)
+        quit()
         
 
         # Second set of points
@@ -503,9 +511,6 @@ class SigmaSets(object):
         w2 = (2.*(n-1.)**2) / ((n+1.)**2 * (n+2.)**2)
         w = np.block([w0, np.repeat(w1, 2*len(A)), np.repeat(w2, 2*len(B))])
 
-        print(A.shape)
-        print(B.shape)
-        quit()
         
         return X.T, w, w 
 
@@ -590,7 +595,9 @@ class SigmaSets(object):
 
         """
 
+
         ### Generate othogonal matrix B
+        ##############################################################
         B = np.zeros((n,n))
         ii, pp = np.meshgrid(np.arange(1.,n+1), np.array(np.arange(n) / 2,
                                                          dtype = int) + 1)
@@ -599,28 +606,51 @@ class SigmaSets(object):
         B[1::2] = np.sin(B[1::2])
         B *= np.sqrt(2. / float(n))
         if n % 2 == 1:
-            print(ii[-1,:])
             B[-1,:] = ((-1)**(ii[-1,:])) / np.sqrt(float(n))
 
 
         ### Generate simplex vertices
-        # First set of points
+        ##############################################################
+        A = simplex_vertices(n)
 
         
-        jj, mm = np.meshgrid(np.arange(1,n+1), np.arange(1,n+2))
+        ### Generate sigma points
+        ##############################################################
+        #G = np.block(B@A, -B@A)
+        # Get roots of Chebyshev-Laguerre coefficients
+        nc = scale_args['nc']
+        cofs = chebyshev_laguerre_cofs(n, nc)
+        tk = np.roots(cofs)
+        X1 = np.block([tk[i]*B@A for i in range(len(tk))])
+        X = np.block([X1, -X1])
+        
 
-        A = -np.sqrt((n+1.) / (n*(n-I+2.)*(n-I+1.)))
-        indexes = (I == R)
-        A[indexes] = np.sqrt( ((n+1.)*(n-R[indexes]+1.)) / (n*(n-R[indexes]+2.)
-))
-        indexes = I > R
-        A[indexes] = 0.
+        ### Compute weights
+        ##############################################################
+        a = (n / 2.) - 1.
+        # Derivative of CL polynomials evaluated at roots
+        L_dot_tk = np.polyder(np.poly1d(cofs))(tk)
+        # CL weights
+        wk = (factorial(nc)*gamma(n/2 + nc)) / (2.*tk*(n+1.)*gamma(n / 2.)*L_dot_tk**2)
+        w1 = np.repeat(wk, n+1)
+        # Sigma weights
+        w = np.block([w1, w1])
+
+        return X, w, w
+       
 
         
 
 
-n = 11
+n = 2
 x = np.zeros(n)
 Px = np.eye(n)
 sets = SigmaSets()
-sets.get_set(x, Px, set_name = 'oscl')
+X, w, w = sets.get_set(x, Px, set_name = 'oscl', nc = 3)
+
+import matplotlib.pyplot as plt
+
+plt.scatter(X[0,:], X[1,:], s = w*5000.)
+plt.show()
+
+
