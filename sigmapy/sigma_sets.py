@@ -650,6 +650,8 @@ X, w, w = sets.get_set(x, Px, set_name = 'oscl', nc = 3)
 
 import matplotlib.pyplot as plt
 
+print(X@w)
+
 plt.scatter(X[0,:], X[1,:], s = w*5000.)
 plt.show()
 
