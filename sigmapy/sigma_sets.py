@@ -124,7 +124,7 @@ class SigmaSets(object):
         # Get sigma points for N(0, I)
         X, wm, wc = self.sigma_functions[set_name](n, **sigma_args)
         # Change variables to get sigma points for N(x, Px)
-        X = self.add(x[:,None].repeat(X.shape[1], axis = 1), self.sqrt(Px)@X)
+        X = self.add(x[:,None].repeat(X.shape[1], axis = 1), np.dot(self.sqrt(Px), X))
 
         return X, wm, wc
 
@@ -297,14 +297,14 @@ class SigmaSets(object):
         C = self.sqrt(np.diag(np.ones(n), 0) - (alpha**2)*np.ones((n, n)))
         C_inv = inv(C)
 
-        W = np.diag(np.diag(w0*(alpha**2)*C_inv @ np.ones((n,n)) @ C_inv.T), 0)
+        W = np.diag(np.linalg.multi_dot([w0*(alpha**2)*C_inv, np.ones((n,n)), C_inv.T]))
+        W = np.diag(W, 0)
         W_sqrt = self.sqrt(W)
 
         X = np.zeros((n, n+1))
         X[:,0] =  -(alpha / np.sqrt(w0))*np.ones(n)
-        X[:,1:] = C @ inv(W_sqrt)
+        X[:,1:] = np.dot(C, inv(W_sqrt))
         X = X.T
-
         
         ### Weights
         w = np.zeros(n+1)
@@ -621,7 +621,7 @@ class SigmaSets(object):
         nc = scale_args['nc']
         cofs = chebyshev_laguerre_cofs(n, nc)
         tk = np.roots(cofs)
-        X1 = np.block([tk[i]*B@A for i in range(len(tk))])
+        X1 = np.block([tk[i]*np.dot(B, A) for i in range(len(tk))])
         X = np.block([X1, -X1])
         
 
@@ -637,22 +637,4 @@ class SigmaSets(object):
         w = np.block([w1, w1])
 
         return X, w, w
-       
-
-        
-
-
-n = 2
-x = np.zeros(n)
-Px = np.eye(n)
-sets = SigmaSets()
-X, w, w = sets.get_set(x, Px, set_name = 'oscl', nc = 3)
-
-import matplotlib.pyplot as plt
-
-print(X@w)
-
-plt.scatter(X[0,:], X[1,:], s = w*5000.)
-plt.show()
-
 
