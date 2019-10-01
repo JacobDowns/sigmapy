@@ -21,11 +21,10 @@ polynomials = {
 }
 
 def test_set(name):
-    X, wm, wc = sets.get_set(x, Px, set_name = name)
+    X, wm, wc = sets.get_set(x, Px, set_name = name, nc = 4)
 
     order = sets.sigma_order[name]
     polys = polynomials[order]
-
     
     for i in range(polys.shape[1]):
         ks = polys[:,i]
@@ -38,23 +37,26 @@ def test_set(name):
         item_freq = itemfreq(ks)
         freq_dict = {}
         for k,v in zip(item_freq[:,0], item_freq[:,1]):
-            freq_dict[k] = v 
+            freq_dict[k] = v
 
-        if freq_dict.keys() == set([0]):
+        keys = set(freq_dict.keys())
+            
+        if keys == set([0]):
             analytic_int = 1.
-        elif (1 in freq_dict.keys()) or (3 in freq_dict.keys()) or (5 in freq_dict.keys()):
+        elif (1 in keys) or (3 in keys) or (5 in keys):
             analytic_int = 0.
-        elif freq_dict.keys() == set([0,2]):
+        elif keys == set([0,2]):
             analytic_int = 1.
         else :
             analytic_int = 3.
+            print(sigma_int, analytic_int)
 
         print(ks)
         print(sigma_int, analytic_int)
-        print()
+        #print()
         assert(np.abs(sigma_int - analytic_int) < 1e-14), "Error in sigma set: {}".format(name)
     
-for name in sets.sigma_functions.keys():
+for name in ['oscl']:
     test_set(name)
     print("{} passed.".format(name))
         

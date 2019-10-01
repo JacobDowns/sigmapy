@@ -59,7 +59,7 @@ class SigmaSets(object):
         self.sigma_order['merwe'] = 3
         self.sigma_order['menegaz'] = 2
         self.sigma_order['li'] = 5
-        self.sigma_order['mysovskikh'] = 3
+        self.sigma_order['mysovskikh'] = 5
         self.sigma_order['julier'] = 3
         self.sigma_order['simplex'] = 2
         self.sigma_order['hermite'] = 3
@@ -291,8 +291,6 @@ class SigmaSets(object):
             if w0 >= 1.0 or w0 <= 0.0:
                 raise ValueError("w0 must be between 0 and 1")
 
-
-        ### Sigma point set
         alpha = np.sqrt((1. - w0) / n)
         C = self.sqrt(np.diag(np.ones(n), 0) - (alpha**2)*np.ones((n, n)))
         C_inv = inv(C)
@@ -301,12 +299,13 @@ class SigmaSets(object):
         W = np.diag(W, 0)
         W_sqrt = self.sqrt(W)
 
+        # Sigma points
         X = np.zeros((n, n+1))
         X[:,0] =  -(alpha / np.sqrt(w0))*np.ones(n)
         X[:,1:] = np.dot(C, inv(W_sqrt))
         X = X.T
         
-        ### Weights
+        # Weights
         w = np.zeros(n+1)
         w[0] = w0
         w[1:] = np.diag(W, 0)
@@ -347,7 +346,7 @@ class SigmaSets(object):
 
         """
 
-        # Generate sigma points
+        # Sigma points
         lambda_ = n / (n + 1)
         Istar = np.array([[-1/np.sqrt(2*lambda_), 1/np.sqrt(2*lambda_)]])
         for d in range(2, n+1):
@@ -357,7 +356,7 @@ class SigmaSets(object):
 
         X = np.sqrt(n)*Istar
 
-        # Generate weights
+        # Weights
         wm = np.full(n + 1, 1. / (n+1.))
         
         return X, wm, wm
@@ -402,12 +401,10 @@ class SigmaSets(object):
         r = np.sqrt(3./2.)
         # If the first weight is defined
         if 'r' in scale_args:
-            r = scale__args['r']
+            r = scale_args['r']
             if n < 5 or abs(n - r**2 - 1.) < 1e-16:
                 raise ValueError("This method requires n>=4 and n - r^2 - 1 != 0")
         
-
-        # Weights
 
         # Coordinate for the first symmetric set
         r1 = (r*np.sqrt(n-4.))/np.sqrt(n - r**2 - 1.)
@@ -419,15 +416,12 @@ class SigmaSets(object):
         w1 = 1. - 2.*n*w2 - 2.*n*(n-1)*w3
         # Vector of weights
         w = np.block([w1, np.repeat(w2, 2*n), np.repeat(w3, 2*n*(n-1))])
-
-
-        # Points
         
-        # First fully symmetric set
+        # First fully symmetric set of points
         X0 = r1*np.eye(n)
         X0_s = np.block([X0, -X0])
         
-        # Second fully symmetric set
+        # Second fully symmetric set of points
         X1 = r*np.eye(n)
         indexes_i = []
         indexes_j = []
@@ -440,11 +434,11 @@ class SigmaSets(object):
         P2 = X1[indexes_i, :].T - X1[indexes_j, :].T
         X1_s = np.block([P1, P2, -P1, -P2])
 
-
         # Full set of points (columns are points)
         X = np.block([np.zeros(n)[:,None], X0_s, X1_s])
 
         return X, w, w
+
     
 
     def get_set_mysovskikh(self, n, **scale_args):
@@ -478,42 +472,29 @@ class SigmaSets(object):
 
         """
 
-        # First set of points
-        I = (np.arange(n)[:,None] + 1).repeat(n + 1, axis = 1).T
-        R = (np.arange(n + 1) + 1)[:,None].repeat(n, axis = 1)
-        A = -np.sqrt((n+1.) / (n*(n-I+2.)*(n-I+1.)))
-        indexes = (I == R)
-        A[indexes] = np.sqrt( ((n+1.)*(n-R[indexes]+1.)) / (n*(n-R[indexes]+2.)
-))
-        indexes = I > R
-        A[indexes] = 0.
+        # Generate simplex vertices
+        A = simplex_vertices(n)
 
-        print(I)
-        print(R)
-        print(A)
-        print(A.shape)
-        quit()
-        
-
-        # Second set of points
-        ls = np.arange(n+1)[:,None].repeat(n+1)
-        ks = (np.arange(n+1)[:,None].repeat(n+1, axis = 1).T).flatten() 
+        # Midpoints of simplex vertices projected onto a sphere
+        ll, kk = np.meshgrid(np.arange(n+1), np.array(np.arange(n+1), dtype = int))
+        ls = ll.flatten()
+        ks = kk.flatten()
         indexes = ks < ls
-        B = np.sqrt(n / (2.*(n-1.)))*(A[ks[indexes]] + A[ls[indexes]])
-
-        # Full set
-        #X = np.sqrt(n + 2.)*np.block([[np.zeros(n)], [A], [-A], [B], [-B]])
-        X = np.block([[np.zeros(n)], [A], [-A], [B], [-B]])
+        B = np.sqrt(n / (2.*(n-1.)))*(A[:,ks[indexes]] + A[:,ls[indexes]])
+        
+        # Sigma points
+        A *= np.sqrt(2.)*np.sqrt(n/2. + 1.)
+        B *= np.sqrt(2.)*np.sqrt(n/2. + 1.)
+        X = np.block([np.zeros(n)[:,np.newaxis], A, -A, B, -B])
         
         # Weights
         w0 = 2./(n+2.)
         w1 = (n**2 * (7. - n)) / (2.*(n + 1.)**2 * (n+2.)**2)
         w2 = (2.*(n-1.)**2) / ((n+1.)**2 * (n+2.)**2)
-        w = np.block([w0, np.repeat(w1, 2*len(A)), np.repeat(w2, 2*len(B))])
+        w = np.block([w0, np.repeat(w1, 2*A.shape[1]), np.repeat(w2, 2*B.shape[1])])
 
-        
-        return X.T, w, w 
-
+        return X, w, w
+    
 
 
     def get_set_hermite(self, n, **scale_args):
@@ -550,6 +531,7 @@ class SigmaSets(object):
 
         # Sigma points
         X = np.array(np.meshgrid(*[[0., 1. , -1.]]*n)).T.reshape(-1, n).T
+        
         # Mean and covariance weights
         js = (X**2).sum(axis = 0)
         wm = (2./3.)**(n-js) * (1./6.)**(js)
@@ -595,9 +577,7 @@ class SigmaSets(object):
 
         """
 
-
-        ### Generate othogonal matrix B
-        ##############################################################
+        # Generate othogonal matrix B
         B = np.zeros((n,n))
         ii, pp = np.meshgrid(np.arange(1.,n+1), np.array(np.arange(n) / 2,
                                                          dtype = int) + 1)
@@ -608,30 +588,27 @@ class SigmaSets(object):
         if n % 2 == 1:
             B[-1,:] = ((-1)**(ii[-1,:])) / np.sqrt(float(n))
 
-
-        ### Generate simplex vertices
-        ##############################################################
+        # Generate simplex vertices
         A = simplex_vertices(n)
 
         
-        ### Generate sigma points
-        ##############################################################
-        #G = np.block(B@A, -B@A)
+        # Generate sigma points
+        
         # Get roots of Chebyshev-Laguerre coefficients
         nc = scale_args['nc']
         cofs = chebyshev_laguerre_cofs(n, nc)
         tk = np.roots(cofs)
-        X1 = np.block([tk[i]*np.dot(B, A) for i in range(len(tk))])
+        X1 = np.block([np.sqrt(2.*tk[i])*np.dot(B, A) for i in range(len(tk))])
         X = np.block([X1, -X1])
         
 
-        ### Compute weights
-        ##############################################################
+        # Compute weights
+        
         a = (n / 2.) - 1.
         # Derivative of CL polynomials evaluated at roots
         L_dot_tk = np.polyder(np.poly1d(cofs))(tk)
         # CL weights
-        wk = (factorial(nc)*gamma(n/2 + nc)) / (2.*tk*(n+1.)*gamma(n / 2.)*L_dot_tk**2)
+        wk = (factorial(nc)*gamma(n/2. + nc)) / (2.*tk*(n+1.)*gamma(n / 2.)*L_dot_tk**2)
         w1 = np.repeat(wk, n+1)
         # Sigma weights
         w = np.block([w1, w1])
