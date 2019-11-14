@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.linalg import cholesky, inv
-from math_util import chebyshev_laguerre_cofs, simplex_vertices
+from sigmapy.math_util import chebyshev_laguerre_cofs, simplex_vertices
 from scipy.misc import factorial
 from scipy.special import gamma
 
@@ -353,9 +353,7 @@ class SigmaSets(object):
             row = np.ones((1, Istar.shape[1] + 1)) * 1. / np.sqrt(lambda_*d*(d + 1))
             row[0, -1] = -d / np.sqrt(lambda_ * d * (d + 1))
             Istar = np.r_[np.c_[Istar, np.zeros((Istar.shape[0]))], row]
-
         X = np.sqrt(n)*Istar
-
         # Weights
         wm = np.full(n + 1, 1. / (n+1.))
         
@@ -398,14 +396,17 @@ class SigmaSets(object):
            for Real-Time Orbit Determination by Radar" 
         """
 
+        # Scaling parameter
         r = np.sqrt(3./2.)
-        # If the first weight is defined
         if 'r' in scale_args:
             r = scale_args['r']
             if n < 5 or abs(n - r**2 - 1.) < 1e-16:
                 raise ValueError("This method requires n>=4 and n - r^2 - 1 != 0")
-        
 
+            
+        ### Weights
+        ##############################################################
+            
         # Coordinate for the first symmetric set
         r1 = (r*np.sqrt(n-4.))/np.sqrt(n - r**2 - 1.)
         # First symmetric set weight
@@ -416,6 +417,10 @@ class SigmaSets(object):
         w1 = 1. - 2.*n*w2 - 2.*n*(n-1)*w3
         # Vector of weights
         w = np.block([w1, np.repeat(w2, 2*n), np.repeat(w3, 2*n*(n-1))])
+
+
+        ### Sigma points
+        ##############################################################
         
         # First fully symmetric set of points
         X0 = r1*np.eye(n)
@@ -439,7 +444,6 @@ class SigmaSets(object):
 
         return X, w, w
 
-    
 
     def get_set_mysovskikh(self, n, **scale_args):
         """
@@ -472,9 +476,11 @@ class SigmaSets(object):
 
         """
 
-        # Generate simplex vertices
+        ### Sigma points
+        ##############################################################
+        
+        # Simplex vertices
         A = simplex_vertices(n)
-
         # Midpoints of simplex vertices projected onto a sphere
         ll, kk = np.meshgrid(np.arange(n+1), np.array(np.arange(n+1), dtype = int))
         ls = ll.flatten()
@@ -482,12 +488,14 @@ class SigmaSets(object):
         indexes = ks < ls
         B = np.sqrt(n / (2.*(n-1.)))*(A[:,ks[indexes]] + A[:,ls[indexes]])
         
-        # Sigma points
         A *= np.sqrt(2.)*np.sqrt(n/2. + 1.)
         B *= np.sqrt(2.)*np.sqrt(n/2. + 1.)
         X = np.block([np.zeros(n)[:,np.newaxis], A, -A, B, -B])
+
+
+        ### Weights
+        ##############################################################
         
-        # Weights
         w0 = 2./(n+2.)
         w1 = (n**2 * (7. - n)) / (2.*(n + 1.)**2 * (n+2.)**2)
         w2 = (2.*(n-1.)**2) / ((n+1.)**2 * (n+2.)**2)
@@ -528,15 +536,11 @@ class SigmaSets(object):
            Tracking" 
 
         """
-
-        # Sigma points
-        X = np.array(np.meshgrid(*[[0., 1. , -1.]]*n)).T.reshape(-1, n).T
         
-        # Mean and covariance weights
+        X = np.array(np.meshgrid(*[[0., 1. , -1.]]*n)).T.reshape(-1, n).T
         js = (X**2).sum(axis = 0)
         wm = (2./3.)**(n-js) * (1./6.)**(js)
         wc = (2./3.)**(n-js) * (1./6.)**(js)
-
         X *= np.sqrt(3.)
 
         return X, wm, wm
@@ -577,7 +581,9 @@ class SigmaSets(object):
 
         """
 
-        # Generate othogonal matrix B
+        ### Orthogonal matrix B
+        ##############################################################
+        
         B = np.zeros((n,n))
         ii, pp = np.meshgrid(np.arange(1.,n+1), np.array(np.arange(n) / 2,
                                                          dtype = int) + 1)
@@ -588,12 +594,12 @@ class SigmaSets(object):
         if n % 2 == 1:
             B[-1,:] = ((-1)**(ii[-1,:])) / np.sqrt(float(n))
 
-        # Generate simplex vertices
-        A = simplex_vertices(n)
+            
+        ### Sigma points
+        ##############################################################
 
-        
-        # Generate sigma points
-        
+        # Simplex vertices
+        A = simplex_vertices(n)
         # Get roots of Chebyshev-Laguerre coefficients
         nc = scale_args['nc']
         cofs = chebyshev_laguerre_cofs(n, nc)
@@ -602,7 +608,8 @@ class SigmaSets(object):
         X = np.block([X1, -X1])
         
 
-        # Compute weights
+        ### Weights
+        ##############################################################
         
         a = (n / 2.) - 1.
         # Derivative of CL polynomials evaluated at roots
