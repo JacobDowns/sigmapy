@@ -16,6 +16,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         'numpy',
+        'GPy'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
