@@ -6,9 +6,6 @@
 Welcome to sigmapy's documentation!
 ===================================
 
-.. automodule:: sigmapy.bq.weight_computer
-   :members:
-
 .. automodule:: sigmapy.bq.bayesian_quadrature
    :members:
       

@@ -1,8 +1,9 @@
-import GPy
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from scipy.spatial import distance_matrix
 import matplotlib.pyplot as plt
+import GPy
+from scipy.stats import multivariate_normal
 
 class BayesianQuadrature(object):
     
@@ -42,29 +43,19 @@ class BayesianQuadrature(object):
     def __init__(self, alpha, lengthscales):
 
         # Dimension
-        self.n = len(lengthscales)
-        # Create a kernel
-        self.kernel = GPy.kern.RBF(input_dim = self.n,
+        n = len(lengthscales)
+        # Covariance kernel
+        self.kernel = GPy.kern.RBF(input_dim = n,
                                    variance = alpha**2,
                                    lengthscale = lengthscales,
                                    ARD = True)
-        # Diagonal covariance matrix
-        self.Lambda = np.diag(lengthscales**2)
-        # Determinant of covariance matrix
-        self.Lambda_det = np.prod(np.diag(self.Lambda))
-        # Inverse covariance matrix
-        self.Lambda_inv = 1. / self.Lambda
-        # Determinant of inverse covariance matrix
-        self.Lambda_inv_det = 1. / self.Lambda_det
-        # Diagonal of  S = Lambda + I
-        self.S = self.Lambda + np.eye(self.n)
-        # Determinant of S 
-        self.S_det = np.prod(np.diag(self.S))
-        # Inverse of S
-        self.S_inv = 1. / self.S
-        # c is a constant such that c*k(x,x') is a Gaussian PDF
-        self.c = 1. / (np.sqrt((2.*np.pi)**(self.n) * (self.Lambda_inv_det))*alpha**2)
 
+        # Covariance matrix
+        self.Lambda = np.diag(lengthscales**2)
+        # Determinant of inverse covariance matrix
+        Lambda_inv_det = np.prod(1. / np.diag(self.Lambda))
+        # c is a constant such that c*k(x,x') is a Gaussian PDF
+        self.c = 1. / (np.sqrt((2.*np.pi)**(n) * (Lambda_inv_det))*alpha**2)
         
    
     
@@ -75,7 +66,7 @@ class BayesianQuadrature(object):
         :math:`\pmb{w}` via
         
         .. math:: 
-           (K + \\sigma^2 I) \pmb{w} = \pmb{z}
+           (K + \\sigma^2 I) \pmb{w} = \pmb{k}
 
         with
 
@@ -102,32 +93,35 @@ class BayesianQuadrature(object):
            np.array(m): Array of weights w
 
         """
+
+        print(self.Lambda)
         
         # Left hand side
-        K = self.kernel.K(X,X)
-
-        print(self.kernel.K(X,X))
-        print()
-        print(self.kernel.K(X))
-        quit()
-        print(K)
+        K = self.kernel.K(X)
         A = K + (sigma**2 * np.eye(K.shape[0]))
         # Right hand side
-        z = self.__int_gaussian_product__(X) * self.c
+        k = self.__int_gaussian_product__(X, self.Lambda) / self.c
         # Solve for weights
-        w = np.linalg.solve(A,z)
+        w = np.linalg.solve(A, k)
+        # Compute the variance of the integration rule
+        v1 = self.__int_gaussian_product__(np.array([[0.]]),
+                                           self.Lambda  +np.eye(self.Lambda.shape[0]))                                            
+        v1 /= self.c
+        v2 = k @ w
+        
+        print(v1, v2, v1 - v2)
         return w
         
 
 
 
-    def __int_gaussian_product__(self, X):
+    def __int_gaussian_product__(self, X, Lambda):
         """
         Given a set of m points :math:`x_i \\in \\mathbb{R}^n`, this 
         function computes integrals of products of of Gaussian PDF's. 
 
          .. math:: 
-           \pmb{c} = \\begin{bmatrix}
+           \\begin{bmatrix}
            \\int_{\\mathbb{R}^n} 
            \\mathcal{N}(\pmb{x} | \pmb{x_1}, \\Lambda) 
            \\mathcal{N}(\\pmb{x} | \\pmb{0}, I) d \pmb{x} \\\\
@@ -135,39 +129,26 @@ class BayesianQuadrature(object):
            \\int_{\\mathbb{R}^n} 
            \\mathcal{N}(\pmb{x} | \pmb{x_m}, \\Lambda)
            \\mathcal{N}(\pmb{x} | \pmb{0}, I) d \pmb{x}
+           \\end{bmatrix} =
+           \\begin{bmatrix}
+           \\mathcal{N}(\pmb{x_1} | \pmb{0}, \\Lambda + I) \\\\
+           \\mathcal{N}(\pmb{x_2} | \pmb{0}, \\Lambda + I) \\\\
+           \\vdots \\\\
+           \\mathcal{N}(\pmb{x_i} | \pmb{0}, \\Lambda + I) 
            \\end{bmatrix}
 
-        
-        The i-th integral can be computed in closed form by
-
-        .. math:: 
-           c_i = (2 \\pi)^{-\\frac{n}{2}} 
-           |\\Lambda_1 + I|^{-\\frac{1}{2}}
-           \\exp \\left ( -\\frac{1}{2} \pmb{x_i}^T 
-           (\\Lambda + I)^{-1} \pmb{x_i} \\right )
-
         Args:
-           X (np.array(n, m): Array of points
+           X (np.array(m, n): Array of m points in :math:`\\mathbb{R}^n`
 
         Returns:
-           np.array(m): Array of integrals c
+           np.array(m): Integrals for each point
 
         """
 
-        # Dimension
-        n = float(self.n)
-        # Determinant of S 
-        S_det = self.S_det
-        # Inverse of S
-        S_inv = self.S_inv
-
-        c0 = (2.*np.pi)**(-n/2.)
-        c1 = S_det**(-1./2.)
-        c2 = np.exp(-0.5 * (X @ S_inv @ X.T).sum(axis = 1))
-        c = c0 * c1 * c2
-        
-        return c
-
+        print("Lamb", Lambda)
+        n = X.shape[1]
+        norm = multivariate_normal(np.zeros(n), Lambda + np.eye(n))
+        return norm.pdf(X)
 
 
 
