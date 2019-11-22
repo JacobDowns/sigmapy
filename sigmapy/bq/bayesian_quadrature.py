@@ -3,7 +3,7 @@ from scipy.spatial.distance import pdist, squareform
 from scipy.spatial import distance_matrix
 import matplotlib.pyplot as plt
 import GPy
-from scipy.stats import multivariate_normal
+from util import normal_pdf
 
 class BayesianQuadrature(object):
     
@@ -160,6 +160,7 @@ class BayesianQuadrature(object):
 
         norm = multivariate_normal(m, Lambda + P)
         return norm.pdf(X)
+
 
 
 
